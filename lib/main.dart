@@ -11,26 +11,29 @@ class BizzioApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Bizzio',
-      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(),
+      home: const HomePage(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class MyHomePage extends StatelessWidget {
-  const MyHomePage({super.key});
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bizzio Home'),
+        title: const Text('Bizzio'),
       ),
       body: const Center(
-        child: Text('Welcome to Bizzio!'),
+        child: Text(
+          'Welcome to Bizzio!',
+          style: TextStyle(fontSize: 24),
+        ),
       ),
     );
   }

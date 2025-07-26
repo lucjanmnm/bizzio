@@ -12,6 +12,8 @@
 .swiftpm/
 migrate_working_dir/
 
+test/
+
 # IntelliJ related
 *.iml
 *.ipr
@@ -45,4 +47,3 @@ app.*.map.json
 /android/app/release
 
 
-test/

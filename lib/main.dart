@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:bizzio/screens/dashboard_screen.dart';
 
-void main() {
+void main() async {
   runApp(const BizzioApp());
 }
 
@@ -9,32 +10,9 @@ class BizzioApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       title: 'Bizzio',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const HomePage(),
-      debugShowCheckedModeBanner: false,
-    );
-  }
-}
-
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Bizzio'),
-      ),
-      body: const Center(
-        child: Text(
-          'Welcome to Bizzio!',
-          style: TextStyle(fontSize: 24),
-        ),
-      ),
+      home: DashboardScreen(),  
     );
   }
 }

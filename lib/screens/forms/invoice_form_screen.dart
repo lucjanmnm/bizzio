@@ -106,7 +106,7 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                   labelText: 'Amount',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Required';
                   if (double.tryParse(v) == null) return 'Must be number';

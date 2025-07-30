@@ -1,3 +1,5 @@
+// ignore_for_file: unused_local_variable
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,7 +10,7 @@ import 'package:share/share.dart';
 
 import '../models/invoice.dart';
 import '../services/local_db.dart';
-import './forms/invoice_form_screen.dart'; // Import ekran formularza
+import './forms/invoice_form_screen.dart';
 
 class InvoicesScreen extends StatefulWidget {
   const InvoicesScreen({Key? key}) : super(key: key);
@@ -111,7 +113,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           '\${inv.id},\${inv.projectId},\${inv.amount},\${_formatDate(inv.date)},\${_formatDate(inv.dueDate)}');
     }
     final directory = await getTemporaryDirectory();
-    final path = '\${directory.path}/invoices_export.csv';
+    const path = '\${directory.path}/invoices_export.csv';
     final file = File(path);
     await file.writeAsString(csv.toString());
     Share.shareFiles([path], text: 'Exported Invoices');
@@ -179,7 +181,6 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Filters
                   Row(
                     children: [
                       Expanded(
@@ -224,7 +225,6 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  // Data table
                   Expanded(
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,

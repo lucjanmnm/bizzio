@@ -1,8 +1,12 @@
+// ignore_for_file: unused_result
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/project.dart';
 import '../models/client.dart';
 import '../services/local_db.dart';
+
+
 
 final projectsProvider = FutureProvider<List<Project>>((ref) async {
   return LocalDb.instance.getAllProjects();

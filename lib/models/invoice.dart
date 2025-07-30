@@ -13,7 +13,6 @@ class Invoice {
     required this.dueDate,
   });
 
-  /// Czy faktura jest przeterminowana?
   bool get isOverdue {
     final now = DateTime.now();
     return amount > 0 && dueDate.isBefore(DateTime(now.year, now.month, now.day));

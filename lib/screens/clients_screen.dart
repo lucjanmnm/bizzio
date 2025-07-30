@@ -1,3 +1,5 @@
+// ignore_for_file: unused_result
+
 import 'package:bizzio/screens/projects_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -14,7 +13,6 @@ class LocalDb {
   late final Database _db;
   bool _initialized = false;
 
-  /// Inicjalizacja bazy (jednorazowo)
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
@@ -43,7 +41,6 @@ class LocalDb {
               FOREIGN KEY(clientId) REFERENCES clients(id)
             )
           ''');
-          // Dodajemy kolumnę dueDate do faktur
           await db.execute('''
             CREATE TABLE invoices(
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,7 +56,6 @@ class LocalDb {
     );
   }
 
-  /// Klienci
   Future<List<Client>> getAllClients() async {
     final maps = await _db.query('clients');
     return maps.map((m) => Client.fromMap(m)).toList();
@@ -77,7 +73,6 @@ class LocalDb {
         whereArgs: [id],
       );
 
-  /// Projekty
   Future<List<Project>> getAllProjects() async {
     final maps = await _db.query('projects');
     return maps.map((m) => Project.fromMap(m)).toList();
@@ -95,7 +90,6 @@ class LocalDb {
         whereArgs: [id],
       );
 
-  /// Faktury
   Future<List<Invoice>> getAllInvoices() async {
     final maps = await _db.query('invoices');
     return maps.map((m) => Invoice.fromMap(m)).toList();
@@ -114,7 +108,6 @@ class LocalDb {
     );
   }
 
-  /// Wstaw lub zaktualizuj fakturę w zależności od id
   Future<int> upsertInvoice(Invoice invoice) async {
     if (invoice.id == null) {
       return addInvoice(invoice);

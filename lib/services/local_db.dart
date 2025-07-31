@@ -16,14 +16,16 @@ class LocalDb {
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
-
+    
     sqfliteFfiInit();
+
     final docsDir = await getApplicationDocumentsDirectory();
     final path = join(docsDir.path, 'bizzio.db');
+
     _db = await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 1,
+        version: 2,
         onCreate: (db, version) async {
           await db.execute('''
             CREATE TABLE clients(
@@ -52,9 +54,18 @@ class LocalDb {
             )
           ''');
         },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) {
+            await db.execute('''
+              ALTER TABLE invoices
+              ADD COLUMN dueDate TEXT NOT NULL DEFAULT '2025-01-01'
+            ''');
+          }
+        },
       ),
     );
   }
+
 
   Future<List<Client>> getAllClients() async {
     final maps = await _db.query('clients');

@@ -1,5 +1,3 @@
-// ignore_for_file: unused_local_variable
-
 import 'dart:convert';
 import 'dart:io';
 
@@ -9,8 +7,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share/share.dart';
 
 import '../models/invoice.dart';
+import '../models/project.dart';
 import '../services/local_db.dart';
-import './forms/invoice_form_screen.dart';
+import 'forms/invoice_form_screen.dart';
 
 class InvoicesScreen extends StatefulWidget {
   const InvoicesScreen({Key? key}) : super(key: key);
@@ -26,6 +25,8 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   String _selectedStatus = 'All';
 
   List<Invoice> _invoices = [];
+  List<Project> _projects = [];
+  Map<int, String> _projectTitles = {};
   bool _isLoading = true;
 
   @override
@@ -36,7 +37,18 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 
   Future<void> _initDbAndLoad() async {
     await LocalDb.instance.init();
+    await _loadProjects();
     await _loadInvoices();
+  }
+
+  Future<void> _loadProjects() async {
+    final projects = await LocalDb.instance.getAllProjects();
+    setState(() {
+      _projects = projects;
+      _projectTitles = {
+        for (var p in projects) p.id!: p.title
+      };
+    });
   }
 
   Future<void> _loadInvoices() async {
@@ -60,7 +72,9 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (picked != null) setState(() => _issueDateRange = picked);
+    if (picked != null) {
+      setState(() => _issueDateRange = picked);
+    }
   }
 
   Future<void> _pickDueDateRange() async {
@@ -69,7 +83,9 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (picked != null) setState(() => _dueDateRange = picked);
+    if (picked != null) {
+      setState(() => _dueDateRange = picked);
+    }
   }
 
   void _clearFilters() {
@@ -84,9 +100,10 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   List<Invoice> get _filteredInvoices {
     return _invoices.where((inv) {
       final search = _searchController.text.trim().toLowerCase();
+      final title = _projectTitles[inv.projectId] ?? '';
       final matchesSearch = search.isEmpty ||
           inv.id.toString().contains(search) ||
-          inv.projectId.toString().contains(search);
+          title.toLowerCase().contains(search);
 
       final matchesStatus = _selectedStatus == 'All' ||
           (_selectedStatus == 'Paid' && inv.amount == 0) ||
@@ -95,11 +112,11 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 
       final matchesIssue = _issueDateRange == null ||
           (inv.date.isAfter(_issueDateRange!.start.subtract(const Duration(days: 1))) &&
-              inv.date.isBefore(_issueDateRange!.end.add(const Duration(days: 1))));
+           inv.date.isBefore(_issueDateRange!.end.add(const Duration(days: 1))));
 
       final matchesDue = _dueDateRange == null ||
           (inv.dueDate.isAfter(_dueDateRange!.start.subtract(const Duration(days: 1))) &&
-              inv.dueDate.isBefore(_dueDateRange!.end.add(const Duration(days: 1))));
+           inv.dueDate.isBefore(_dueDateRange!.end.add(const Duration(days: 1))));
 
       return matchesSearch && matchesStatus && matchesIssue && matchesDue;
     }).toList();
@@ -107,13 +124,14 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 
   Future<void> _exportCsv() async {
     final csv = StringBuffer();
-    csv.writeln('ID,ProjectID,Amount,Date,DueDate');
+    csv.writeln('ID,Project,Amount,Date,DueDate');
     for (var inv in _invoices) {
+      final title = _projectTitles[inv.projectId] ?? inv.projectId.toString();
       csv.writeln(
-          '\${inv.id},\${inv.projectId},\${inv.amount},\${_formatDate(inv.date)},\${_formatDate(inv.dueDate)}');
+          '${inv.id},$title,${inv.amount},${_formatDate(inv.date)},${_formatDate(inv.dueDate)}');
     }
     final directory = await getTemporaryDirectory();
-    const path = '\${directory.path}/invoices_export.csv';
+    final path = '${directory.path}/invoices_export.csv';
     final file = File(path);
     await file.writeAsString(csv.toString());
     Share.shareFiles([path], text: 'Exported Invoices');
@@ -129,9 +147,19 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
       final lines = const LineSplitter().convert(content);
       for (var i = 1; i < lines.length; i++) {
         final cols = lines[i].split(',');
+        final title = cols[1];
+        final matching = _projects.firstWhere(
+          (p) => p.title == title,
+          orElse: () => Project(
+            id: int.tryParse(cols[1]),
+            title: title,
+            clientId: 0, 
+            dueDate: DateTime.now(),
+          ),
+        );
         final inv = Invoice(
           id: int.tryParse(cols[0]),
-          projectId: int.parse(cols[1]),
+          projectId: matching.id ?? int.parse(cols[1]),
           amount: double.parse(cols[2]),
           date: DateTime.parse(cols[3]),
           dueDate: DateTime.parse(cols[4]),
@@ -143,12 +171,14 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   }
 
   Future<void> _navigateToForm([Invoice? invoice]) async {
-    final createdOrUpdated = await Navigator.of(context).push(
-      MaterialPageRoute<bool>(
+    final createdOrUpdated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
         builder: (_) => InvoiceFormScreen(invoice: invoice),
       ),
     );
-    if (createdOrUpdated == true) await _loadInvoices();
+    if (createdOrUpdated == true) {
+      await _loadInvoices();
+    }
   }
 
   @override
@@ -197,7 +227,10 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                       DropdownButton<String>(
                         value: _selectedStatus,
                         items: ['All', 'Paid', 'Pending', 'Overdue']
-                            .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                            .map((s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text(s),
+                                ))
                             .toList(),
                         onChanged: (v) {
                           if (v != null) setState(() => _selectedStatus = v);
@@ -208,14 +241,14 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                         onPressed: _pickIssueDateRange,
                         child: Text(_issueDateRange == null
                             ? 'Issue Date'
-                            : '\${_issueDateRange!.start.toShortDateString()} - \${_issueDateRange!.end.toShortDateString()}'),
+                            : '${_issueDateRange!.start.toShortDateString()} – ${_issueDateRange!.end.toShortDateString()}'),
                       ),
                       const SizedBox(width: 8),
                       TextButton(
                         onPressed: _pickDueDateRange,
                         child: Text(_dueDateRange == null
                             ? 'Due Date'
-                            : '\${_dueDateRange!.start.toShortDateString()} - \${_dueDateRange!.end.toShortDateString()}'),
+                            : '${_dueDateRange!.start.toShortDateString()} – ${_dueDateRange!.end.toShortDateString()}'),
                       ),
                       IconButton(
                         icon: const Icon(Icons.clear_all),
@@ -231,17 +264,20 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                       child: DataTable(
                         columns: const [
                           DataColumn(label: Text('ID')),
-                          DataColumn(label: Text('Project ID')),
+                          DataColumn(label: Text('Project')),
                           DataColumn(label: Text('Amount')),
                           DataColumn(label: Text('Issue Date')),
                           DataColumn(label: Text('Due Date')),
                           DataColumn(label: Text('Actions')),
                         ],
                         rows: _filteredInvoices.map((inv) {
+                          final title =
+                              _projectTitles[inv.projectId] ?? '-';
                           return DataRow(cells: [
                             DataCell(Text(inv.id?.toString() ?? '-')),
-                            DataCell(Text(inv.projectId.toString())),
-                            DataCell(Text(inv.amount.toStringAsFixed(2))),
+                            DataCell(Text(title)),
+                            DataCell(
+                                Text(inv.amount.toStringAsFixed(2))),
                             DataCell(Text(_formatDate(inv.date))),
                             DataCell(Text(_formatDate(inv.dueDate))),
                             DataCell(Row(
@@ -253,7 +289,8 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.delete),
-                                  onPressed: () => _deleteInvoice(inv.id!),
+                                  onPressed: () =>
+                                      _deleteInvoice(inv.id!),
                                   tooltip: 'Delete',
                                 ),
                               ],
@@ -270,10 +307,11 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   }
 
   static String _formatDate(DateTime date) {
-    return "\${date.year}-\${date.month.toString().padLeft(2, '0')}-\${date.day.toString().padLeft(2, '0')}";
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 }
 
 extension DateHelpers on DateTime {
-  String toShortDateString() => "\$year-\${month.toString().padLeft(2, '0')}-\${day.toString().padLeft(2, '0')}";
+  String toShortDateString() =>
+      '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
 }

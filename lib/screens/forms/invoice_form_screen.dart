@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/invoice.dart';
+import '../../models/project.dart';
 import '../../services/local_db.dart';
 
 class InvoiceFormScreen extends StatefulWidget {
@@ -15,7 +16,8 @@ class InvoiceFormScreen extends StatefulWidget {
 
 class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _projectIdCtrl;
+  List<Project> _projects = [];
+  int? _selectedProjectId;
   late TextEditingController _amountCtrl;
   DateTime? _issueDate;
   DateTime? _dueDate;
@@ -24,16 +26,22 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
   @override
   void initState() {
     super.initState();
+    _loadProjects();
     final inv = widget.invoice;
-    _projectIdCtrl = TextEditingController(text: inv?.projectId.toString() ?? '');
-    _amountCtrl = TextEditingController(text: inv?.amount.toStringAsFixed(2) ?? '');
+    _selectedProjectId = inv?.projectId;
+    _amountCtrl =
+        TextEditingController(text: inv?.amount.toStringAsFixed(2) ?? '');
     _issueDate = inv?.date ?? DateTime.now();
     _dueDate = inv?.dueDate ?? DateTime.now().add(const Duration(days: 30));
   }
 
+  Future<void> _loadProjects() async {
+    final projects = await LocalDb.instance.getAllProjects();
+    setState(() => _projects = projects);
+  }
+
   @override
   void dispose() {
-    _projectIdCtrl.dispose();
     _amountCtrl.dispose();
     super.dispose();
   }
@@ -58,14 +66,16 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate() || _issueDate == null || _dueDate == null) return;
-    final id = widget.invoice?.id;
-    final projectId = int.parse(_projectIdCtrl.text);
-    final amount = double.parse(_amountCtrl.text);
+    if (!_formKey.currentState!.validate() ||
+        _selectedProjectId == null ||
+        _issueDate == null ||
+        _dueDate == null) {
+      return;
+    }
     final invoice = Invoice(
-      id: id,
-      projectId: projectId,
-      amount: amount,
+      id: widget.invoice?.id,
+      projectId: _selectedProjectId!,
+      amount: double.parse(_amountCtrl.text),
       date: _issueDate!,
       dueDate: _dueDate!,
     );
@@ -86,18 +96,23 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              TextFormField(
-                controller: _projectIdCtrl,
+              DropdownButtonFormField<int>(
+                value: _selectedProjectId,
                 decoration: const InputDecoration(
-                  labelText: 'Project ID',
+                  labelText: 'Project',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: TextInputType.number,
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Required';
-                  if (int.tryParse(v) == null) return 'Must be integer';
-                  return null;
-                },
+                items: _projects
+                    .map((proj) => DropdownMenuItem<int>(
+                          value: proj.id,
+                          child: Text(proj.title),
+                        ))
+                    .toList(),
+                onChanged: (val) => setState(() {
+                  _selectedProjectId = val;
+                }),
+                validator: (val) =>
+                    val == null ? 'Please select a project' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -106,10 +121,11 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                   labelText: 'Amount',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Required';
-                  if (double.tryParse(v) == null) return 'Must be number';
+                  if (double.tryParse(v) == null) return 'Must be a number';
                   return null;
                 },
               ),

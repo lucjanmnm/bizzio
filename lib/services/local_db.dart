@@ -16,7 +16,7 @@ class LocalDb {
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
-    
+
     sqfliteFfiInit();
 
     final docsDir = await getApplicationDocumentsDirectory();
@@ -25,7 +25,7 @@ class LocalDb {
     _db = await databaseFactoryFfi.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 2,
+        version: 3,
         onCreate: (db, version) async {
           await db.execute('''
             CREATE TABLE clients(
@@ -50,6 +50,7 @@ class LocalDb {
               amount REAL NOT NULL,
               date TEXT NOT NULL,
               dueDate TEXT NOT NULL,
+              status TEXT NOT NULL DEFAULT 'Pending',
               FOREIGN KEY(projectId) REFERENCES projects(id)
             )
           ''');
@@ -58,7 +59,13 @@ class LocalDb {
           if (oldVersion < 2) {
             await db.execute('''
               ALTER TABLE invoices
-              ADD COLUMN dueDate TEXT NOT NULL DEFAULT '2025-01-01'
+              ADD COLUMN dueDate TEXT NOT NULL DEFAULT '1970-01-01'
+            ''');
+          }
+          if (oldVersion < 3) {
+            await db.execute('''
+              ALTER TABLE invoices
+              ADD COLUMN status TEXT NOT NULL DEFAULT 'Pending'
             ''');
           }
         },
@@ -66,17 +73,16 @@ class LocalDb {
     );
   }
 
-
   Future<List<Client>> getAllClients() async {
     final maps = await _db.query('clients');
     return maps.map((m) => Client.fromMap(m)).toList();
   }
-  Future<int> addClient(Client client) => _db.insert('clients', client.toMap());
-  Future<int> updateClient(Client client) => _db.update(
+  Future<int> addClient(Client c) => _db.insert('clients', c.toMap());
+  Future<int> updateClient(Client c) => _db.update(
         'clients',
-        client.toMap(),
+        c.toMap(),
         where: 'id = ?',
-        whereArgs: [client.id],
+        whereArgs: [c.id],
       );
   Future<int> deleteClient(int id) => _db.delete(
         'clients',
@@ -88,12 +94,12 @@ class LocalDb {
     final maps = await _db.query('projects');
     return maps.map((m) => Project.fromMap(m)).toList();
   }
-  Future<int> addProject(Project project) => _db.insert('projects', project.toMap());
-  Future<int> updateProject(Project project) => _db.update(
+  Future<int> addProject(Project p) => _db.insert('projects', p.toMap());
+  Future<int> updateProject(Project p) => _db.update(
         'projects',
-        project.toMap(),
+        p.toMap(),
         where: 'id = ?',
-        whereArgs: [project.id],
+        whereArgs: [p.id],
       );
   Future<int> deleteProject(int id) => _db.delete(
         'projects',
@@ -106,32 +112,15 @@ class LocalDb {
     return maps.map((m) => Invoice.fromMap(m)).toList();
   }
 
-  Future<int> addInvoice(Invoice invoice) async {
-    return _db.insert('invoices', invoice.toMap());
-  }
-
-  Future<int> updateInvoice(Invoice invoice) async {
-    return _db.update(
-      'invoices',
-      invoice.toMap(),
-      where: 'id = ?',
-      whereArgs: [invoice.id],
-    );
-  }
-
-  Future<int> upsertInvoice(Invoice invoice) async {
-    if (invoice.id == null) {
-      return addInvoice(invoice);
-    } else {
-      return updateInvoice(invoice);
-    }
-  }
-
-  Future<int> deleteInvoice(int id) async {
-    return _db.delete(
-      'invoices',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-  }
+  Future<int> addInvoice(Invoice inv) => _db.insert('invoices', inv.toMap());
+  Future<int> updateInvoice(Invoice inv) => _db.update(
+        'invoices',
+        inv.toMap(),
+        where: 'id = ?',
+        whereArgs: [inv.id],
+      );
+  Future<int> upsertInvoice(Invoice inv) async =>
+      inv.id == null ? addInvoice(inv) : updateInvoice(inv);
+  Future<int> deleteInvoice(int id) =>
+      _db.delete('invoices', where: 'id = ?', whereArgs: [id]);
 }
